@@ -14,11 +14,7 @@ from ruamel.yaml import YAML
 DEFAULT_NEW_FLAVOR = "devops_light"
 DEFAULT_NEW_FLAVOR_DESCRIPTION = "Optimized for DevOps pipelines workflows"
 DEFAULT_COMPONENTS = [
-    "prettier", "npm-groovy-lint", "helm", "yamllint", "sqlfluff",
-    "gitleaks", "secretlint", "trivy", "pylint", "black",
-    "flake8", "isort", "bandit", "mypy", "pyright",
-    "ruff", "hadolint", "ansible", "bash-exec", "shellcheck",
-    "shfmt", "jscpd"
+    "prettier"
 ]
 
 # Paths
@@ -122,7 +118,7 @@ def update_flavor_factory(file_path: Path, new_flavor: str, new_flavor_descripti
         raise
 
 
-def update_yaml_descriptors(directory: Path, descriptors: List[str], new_flavor: str) -> None:
+def update_yaml_descriptors(directory: Path, components: List[str], new_flavor: str) -> None:
     """Update YAML descriptor files with minimal changes."""
     logger.info(f"Updating YAML descriptors in {directory}")
     yaml = YAML()
@@ -139,13 +135,20 @@ def update_yaml_descriptors(directory: Path, descriptors: List[str], new_flavor:
             modified = False
             if isinstance(data, dict) and 'linters' in data:
                 for linter in data['linters']:
-                    if isinstance(linter, dict) and 'linter_name' in linter and linter['linter_name'] in descriptors:
+                    if isinstance(linter, dict) and 'linter_name' in linter:
                         if 'descriptor_flavors' not in linter:
                             linter['descriptor_flavors'] = []
-                        if new_flavor not in linter['descriptor_flavors']:
-                            linter['descriptor_flavors'].append(new_flavor)
-                            modified = True
-                            logger.info(f"Added {new_flavor} to {linter['linter_name']} in {file_path}")
+
+                        if linter['linter_name'] in components:
+                            if new_flavor not in linter['descriptor_flavors']:
+                                linter['descriptor_flavors'].append(new_flavor)
+                                modified = True
+                                logger.info(f"Added {new_flavor} to {linter['linter_name']} in {file_path}")
+                        else:
+                            if new_flavor in linter['descriptor_flavors']:
+                                linter['descriptor_flavors'].remove(new_flavor)
+                                modified = True
+                                logger.info(f"Removed {new_flavor} from {linter['linter_name']} in {file_path}")
 
             if modified:
                 with file_path.open('w') as file:
