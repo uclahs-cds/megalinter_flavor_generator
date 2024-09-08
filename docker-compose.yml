@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  megalinter:
+    image: megalinter-devops_light
+    environment:
+      DISABLE_LINTERS: "SPELL_CSPELL,REPOSITORY_GIT_DIFF"
+      DISABLE_ERRORS: "true"
+      SHOW_ELAPSED_TIME: "true"
+      PRINT_ALPACA: "false"
+      CLEAR_REPORT_FOLDER: "true"
+      SHOW_SKIPPED_LINTERS: "false"
+      LOG_LEVEL: "INFO"
+      PARALLEL_PROCESS_NUMBER: "4"
+      FLAVOR_SUGGESTIONS: "false"
+      REPOSITORY_TRIVY_ARGUMENTS: "--skip-db-update --skip-check-update --scanners vuln"
+      REPOSITORY_TRIVY_SBOM_ARGUMENTS: "--skip-db-update --skip-check-update --scanners vuln"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:rw
+      - ./lint:/tmp/lint:rw
