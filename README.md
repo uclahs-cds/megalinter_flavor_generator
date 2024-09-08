@@ -2,6 +2,18 @@
 
 This script automates the process of generating new MegaLinter flavors. It creates a custom flavor based on selected components (linters) and builds a Docker image for this new flavor.
 
+## Script Logic
+
+1. Update the schema file (megalinter-descriptor.jsonschema.json) to include the new flavor if it doesn't exist.
+2. Modify the flavor factory file (flavor_factory.py) to add the new flavor and its description.
+3. Update YAML descriptor files in the descriptors directory:
+
+- Add the new flavor to linters specified in the components list.
+- Remove the new flavor from linters not in the components list.
+
+4. Run the build.py script to generate necessary files for the new flavor.
+5. Build a Docker image for the new flavor using the appropriate Dockerfile.
+
 ## Requirements
 
 - Python 3.6+
@@ -33,6 +45,13 @@ Arguments:
 ```
 python3 flavor_generator.py --new-flavor "devops_light" --new-flavor-description "Optimized for devops pipelines workflows" --components "prettier,npm-groovy-lint,helm,yamllint,sqlfluff,gitleaks,secretlint,trivy,pylint,black,flake8,isort,bandit,mypy,pyright,kubescape,ruff,hadolint,ansible,bash-exec,shellcheck,shfmt,jscpd"
 ```
+
+## Light version
+
+`flavor_generator_light.py` version reuses some functions from `build.py` to generate only the essential files: `action.yml`, `Dockerfile`, and `flavor.json`.
+
+- This script is significantly faster than the full generation process
+- It's not recommended for production use
 
 ## Note
 
