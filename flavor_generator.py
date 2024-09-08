@@ -14,7 +14,11 @@ from ruamel.yaml import YAML
 DEFAULT_NEW_FLAVOR = "devops_light"
 DEFAULT_NEW_FLAVOR_DESCRIPTION = "Optimized for DevOps pipelines workflows"
 DEFAULT_COMPONENTS = [
-    "prettier"
+    "prettier", "npm-groovy-lint", "helm", "yamllint", "sqlfluff",
+    "gitleaks", "secretlint", "trivy", "pylint", "black",
+    "flake8", "isort", "bandit", "mypy", "pyright",
+    "ruff", "hadolint", "ansible", "bash-exec", "shellcheck",
+    "shfmt", "jscpd"
 ]
 
 # Paths
