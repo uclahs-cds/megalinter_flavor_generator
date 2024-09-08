@@ -31,7 +31,7 @@ Arguments:
 
 ### Example
 ```
-python3 flavor_generator.py --new-flavor "devops_light" --new-flavor-description "Optimized for CI/CD pipelines workflows" --components "prettier,npm-groovy-lint,helm,yamllint,sqlfluff,gitleaks,secretlint,trivy,pylint,black,flake8,isort,bandit,mypy,pyright,kubescape,ruff,hadolint,ansible,bash-exec,shellcheck,shfmt,jscpd"
+python3 flavor_generator.py --new-flavor "devops_light" --new-flavor-description "Optimized for devops pipelines workflows" --components "prettier,npm-groovy-lint,helm,yamllint,sqlfluff,gitleaks,secretlint,trivy,pylint,black,flake8,isort,bandit,mypy,pyright,kubescape,ruff,hadolint,ansible,bash-exec,shellcheck,shfmt,jscpd"
 ```
 
 ## Note
