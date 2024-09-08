@@ -22,7 +22,7 @@ cd megalinter
 
 Run the script from the root of the MegaLinter repository:
 ```
-python script_name.py [--new-flavor "FLAVOR_NAME"] [--new-flavor-description "DESC"] [--components "COMP1,COMP2,..."]
+python3 flavor_generator.py [--new-flavor "FLAVOR_NAME"] [--new-flavor-description "DESC"] [--components "COMP1,COMP2,..."]
 ```
 Arguments:
 - `--new-flavor`: Name of the new flavor (default: "devops_light")
