@@ -1,3 +1,9 @@
+"""
+Modify a Megalinter submodule to add a custom flavor.
+
+Modified from the original at
+https://github.com/Heyzi/megalinter_flavor_generator/blob/ec51579b500636334fb591b4c4343383b36f3615/flavor_generator.py
+"""
 import argparse
 import json
 import logging
@@ -11,17 +17,22 @@ from typing import List
 from ruamel.yaml import YAML
 
 # Default values
-DEFAULT_NEW_FLAVOR = "devops_light"
-DEFAULT_NEW_FLAVOR_DESCRIPTION = "Optimized for DevOps pipelines workflows"
+DEFAULT_NEW_FLAVOR = "bioinformatics"
+DEFAULT_NEW_FLAVOR_DESCRIPTION = "Optimized for bioinformatics pipelines workflows"
 DEFAULT_COMPONENTS = [
-    "prettier",
+    "actionlint",
+    "bashexec",
+    "shellcheck",
+    "shfmt",
     "npm-groovy-lint",
-    "helm",
-    "yamllint",
-    "sqlfluff",
-    "gitleaks",
-    "secretlint",
-    "trivy",
+    "es",
+    "standard",
+    "prettier",
+    "jsonlint",
+    "v8r",
+    "prettier",
+    "npm-package-json-lint",
+    "perlcritic",
     "pylint",
     "black",
     "flake8",
@@ -30,16 +41,14 @@ DEFAULT_COMPONENTS = [
     "mypy",
     "pyright",
     "ruff",
-    "hadolint",
-    "ansible",
-    "bash-exec",
-    "shellcheck",
-    "shfmt",
-    "jscpd",
+    "lintr",
+    "prettier",
+    "yamllint",
+    "v8r"
 ]
 
 # Paths
-BASE_DIR = Path(__file__).resolve().parent
+BASE_DIR = Path(__file__).resolve().parent / "megalinter"
 MEGALINTER_DIR = BASE_DIR / "megalinter"
 PATHS = {
     "descriptors": MEGALINTER_DIR / "descriptors",
@@ -240,6 +249,7 @@ def run_build_script() -> None:
     try:
         process = subprocess.Popen(
             [sys.executable, script_path],
+            cwd=BASE_DIR,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
@@ -366,10 +376,6 @@ def main() -> None:
         logger.info("Starting build script execution")
         run_build_script()
         logger.info("Build script execution completed successfully")
-
-        logger.info("Starting Docker image build")
-        build_docker_image(new_flavor)
-        logger.info("Docker image build completed successfully")
 
     except Exception as e:
         logger.error(f"MegaLinter update and build process failed: {str(e)}")
