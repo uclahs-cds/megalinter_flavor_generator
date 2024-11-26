@@ -143,7 +143,7 @@ def update_flavor_factory(
             match = re.match(r"\s+", last_entry)
             indent = match.group() if match else ""
             new_flavor_entry = (
-                f'{indent}"{new_flavor}": {{"label": "{new_flavor_description}"}},\n'
+                f'{indent}"{new_flavor}": {{"strict": True, "label": "{new_flavor_description}"}},\n'
             )
 
             # Insert the new flavor entry
