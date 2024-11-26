@@ -1,0 +1,3 @@
+[submodule "megalinter"]
+	path = megalinter
+	url = git@github.com:oxsecurity/megalinter.git
