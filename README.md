@@ -18,9 +18,8 @@ Solution: Fork MegaLinter or include it as a submodule.
 
 ### Q: Why not fork MegaLinter?
 I tried that and ran into problems:
-    * Adding a new flavor requires touching numerous files
-    * MegaLinter has a _ton_ of specialized GitHub workflows, some of which are re-generated during the build
-    * Maintaining local changes and attempting to sync with upstream changes is a _gigantic_ pain
-    * _Not_ syncing with upstream (i.e. treating this as a one-off) will require us to start over if we want any changes
 
-
+* Adding a new flavor requires touching numerous files
+* MegaLinter has a _ton_ of specialized GitHub workflows, some of which are re-generated during the build
+* Maintaining local changes and attempting to sync with upstream changes is a _gigantic_ pain
+* _Not_ syncing with upstream (i.e. treating this as a one-off) will require us to start over if we want any changes
