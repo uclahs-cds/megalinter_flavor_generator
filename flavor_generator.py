@@ -67,11 +67,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Initialize YAML parser
-yaml = YAML()
-yaml.preserve_quotes = True
-yaml.indent(mapping=2, sequence=4, offset=2)
-
 
 def parse_arguments() -> argparse.Namespace:
     """Parse command-line arguments."""
@@ -96,7 +91,7 @@ def parse_arguments() -> argparse.Namespace:
 
 def update_schema_file(file_path: Path, new_flavor: str) -> None:
     """Update the schema file with the new flavor if it doesn't already exist."""
-    logger.info(f"Updating schema file: {file_path}")
+    logger.info("Updating schema file: %s", file_path)
     try:
         with file_path.open("r") as file:
             schema = json.load(file)
@@ -108,13 +103,14 @@ def update_schema_file(file_path: Path, new_flavor: str) -> None:
 
             with file_path.open("w") as file:
                 json.dump(schema, file, indent=2)
-            logger.info(f"Added '{new_flavor}' to enum_flavors in the schema file.")
+            logger.info("Added '%s' to enum_flavors in the schema file.", new_flavor)
         else:
             logger.info(
-                f"'{new_flavor}' already exists in enum_flavors. No changes made to the schema file."
+                "'%s' already exists in enum_flavors. No changes made to the schema file.",
+                new_flavor,
             )
-    except Exception as e:
-        logger.error(f"Error updating schema file: {e}", exc_info=True)
+    except Exception as err:
+        logger.error("Error updating schema file: %s", err, exc_info=True)
         raise
 
 
@@ -122,7 +118,7 @@ def update_flavor_factory(
     file_path: Path, new_flavor: str, new_flavor_description: str
 ) -> None:
     """Update the flavor factory file with the new flavor if it doesn't already exist."""
-    logger.info(f"Updating flavor factory file: {file_path}")
+    logger.info("Updating flavor factory file: %s", file_path)
     try:
         with file_path.open("r") as file:
             content = file.read()
@@ -166,11 +162,11 @@ def update_flavor_factory(
 
             with file_path.open("w") as file:
                 file.write(updated_content)
-            logger.info(f"Added '{new_flavor}' flavor in flavor_factory.py")
+            logger.info("Added '%s' flavor in flavor_factory.py", new_flavor)
         else:
-            logger.info(f"'{new_flavor}' flavor already exists. No changes made.")
-    except Exception as e:
-        logger.error(f"Error updating flavor factory file: {e}", exc_info=True)
+            logger.info("'%s' flavor already exists. No changes made.", new_flavor)
+    except Exception as err:
+        logger.error("Error updating flavor factory file: %s", err, exc_info=True)
         raise
 
 
@@ -178,14 +174,15 @@ def update_yaml_descriptors(
     directory: Path, components: List[str], new_flavor: str
 ) -> None:
     """Update YAML descriptor files with minimal changes."""
-    logger.info(f"Updating YAML descriptors in {directory}")
+    logger.info("Updating YAML descriptors in %s", directory)
+
     yaml = YAML()
     yaml.preserve_quotes = True
     yaml.indent(mapping=2, sequence=4, offset=2)
     yaml_files = list(directory.glob("*.y*ml"))
 
     for file_path in yaml_files:
-        logger.debug(f"Processing file: {file_path}")
+        logger.debug("Processing file: %s", file_path)
         try:
             with file_path.open("r") as file:
                 data = yaml.load(file)
@@ -206,7 +203,10 @@ def update_yaml_descriptors(
                                 linter["descriptor_flavors"].append(new_flavor)
                                 modified = True
                                 logger.info(
-                                    f"Added {new_flavor} to {linter_name} in {file_path}"
+                                    "Added %s to %s in %s",
+                                    new_flavor,
+                                    linter_name,
+                                    file_path,
                                 )
 
                                 # Check if we need to update root descriptor_flavors
@@ -217,24 +217,29 @@ def update_yaml_descriptors(
                                         data["descriptor_flavors"].append(new_flavor)
                                         root_flavor_added = True
                                         logger.info(
-                                            f"Added {new_flavor} to root descriptor_flavors in {file_path}"
+                                            "Added %s to root descriptor_flavors in %s",
+                                            new_flavor,
+                                            file_path,
                                         )
                         else:
                             if new_flavor in linter["descriptor_flavors"]:
                                 linter["descriptor_flavors"].remove(new_flavor)
                                 modified = True
                                 logger.info(
-                                    f"Removed {new_flavor} from {linter_name} in {file_path}"
+                                    "Removed %s from %s in %s",
+                                    new_flavor,
+                                    linter_name,
+                                    file_path,
                                 )
 
             if modified:
                 with file_path.open("w") as file:
                     yaml.dump(data, file)
-                logger.info(f"Updated {file_path}")
+                logger.info("Updated %s", file_path)
             else:
-                logger.debug(f"No changes needed for {file_path}")
-        except Exception as e:
-            logger.error(f"Error processing file {file_path}: {e}", exc_info=True)
+                logger.debug("No changes needed for %s", file_path)
+        except Exception as err:
+            logger.error("Error processing file %s: %s", file_path, err)
             raise
 
 
@@ -246,53 +251,27 @@ def run_build_script() -> None:
     script_path = str(PATHS["build_script"])
 
     try:
-        process = subprocess.Popen(
-            [sys.executable, script_path],
-            cwd=BASE_DIR,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            bufsize=1,
-            universal_newlines=True,
-        )
+        subprocess.run([sys.executable, script_path], cwd=BASE_DIR, check=True)
 
-        # Real-time output processing
-        if process.stdout:
-            for line in process.stdout:
-                logger.info(line.strip())
-        else:
-            logger.warning("No stdout from the process")
-
-        # Ensure the process completes and capture any remaining output
-        stdout, stderr = process.communicate()
-
-        if stderr:
-            logger.error(f"Errors from build script: {stderr}")
-
-        if process.returncode != 0:
-            raise subprocess.CalledProcessError(process.returncode, script_path)
-
-    except subprocess.CalledProcessError as e:
-        logger.exception(f"Error in build.py: {e}")
+    except subprocess.CalledProcessError as err:
+        logger.exception("Error in build.py: %s", err)
         raise RuntimeError(
-            f"Build script failed with return code {e.returncode}"
-        ) from e
+            f"Build script failed with return code {err.returncode}"
+        ) from err
     except FileNotFoundError:
-        logger.exception(f"Build script not found: {script_path}")
+        logger.exception("Build script not found: %s", script_path)
         raise FileNotFoundError(
             f"The build script {script_path} was not found."
         ) from None
 
 
 def build_docker_image(new_flavor: str) -> None:
-    """
-    Build the Docker image for the new flavor using Docker CLI directly.
-    """
+    """Build the Docker image for the new flavor using Docker CLI directly."""
     dockerfile_path = f"flavors/{new_flavor}/Dockerfile"
     context_path = "."
     image_name = f"megalinter-{new_flavor}:latest"
 
-    logger.info(f"Building Docker image for {new_flavor} flavor...")
+    logger.info("Building Docker image for %s flavor...", new_flavor)
 
     try:
         # Check if Dockerfile exists
@@ -317,38 +296,19 @@ def build_docker_image(new_flavor: str) -> None:
         env["DOCKER_BUILDKIT"] = "1"
 
         # Execute the Docker build command
-        process = subprocess.Popen(
-            build_command,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            env=env,
-        )
+        subprocess.run(build_command, env=env, check=True)
 
-        # Log the build process in real-time
-        if process.stdout:
-            for line in iter(process.stdout.readline, ""):
-                logger.info(line.strip())
-        else:
-            logger.warning("No stdout from the process")
+        logger.info("Successfully built Docker image: %s", image_name)
 
-        # Wait for the process to complete
-        return_code = process.wait()
-
-        if return_code != 0:
-            raise subprocess.CalledProcessError(return_code, " ".join(build_command))
-
-        logger.info(f"Successfully built Docker image: {image_name}")
-
-    except subprocess.CalledProcessError as e:
-        logger.error(f"Error building Docker image: {e}")
-        raise RuntimeError(f"Docker build failed: {e}") from e
-    except FileNotFoundError as e:
-        logger.error(str(e))
+    except subprocess.CalledProcessError as err:
+        logger.error("Error building Docker image: %s", err)
+        raise RuntimeError(f"Docker build failed: {err}") from err
+    except FileNotFoundError as err:
+        logger.error(str(err))
         raise
-    except Exception as e:
-        logger.error(f"Unexpected error during Docker build: {e}")
-        raise RuntimeError(f"Unexpected error during Docker build: {e}") from e
+    except Exception as err:
+        logger.error("Unexpected error during Docker build: %s", err)
+        raise RuntimeError(f"Unexpected error during Docker build: {err}") from err
 
 
 def main() -> None:
@@ -360,10 +320,10 @@ def main() -> None:
         components = [comp.strip() for comp in args.components.split(",")]
 
         logger.info(
-            f"Starting MegaLinter flavor update process with new flavor: {new_flavor}"
+            "Starting MegaLinter flavor update process with new flavor: %s", new_flavor
         )
-        logger.info(f"New flavor description: {new_flavor_description}")
-        logger.info(f"Components: {components}")
+        logger.info("New flavor description: %s", new_flavor_description)
+        logger.info("Components: %s", components)
 
         update_schema_file(PATHS["schema"], new_flavor)
         update_flavor_factory(
@@ -376,9 +336,9 @@ def main() -> None:
         run_build_script()
         logger.info("Build script execution completed successfully")
 
-    except Exception as e:
-        logger.error(f"MegaLinter update and build process failed: {str(e)}")
-        sys.exit(1)
+    except Exception as err:
+        logger.error("MegaLinter update and build process failed: %s", err)
+        raise
 
 
 if __name__ == "__main__":
