@@ -4,6 +4,7 @@ Modify a Megalinter submodule to add a custom flavor.
 Modified from the original at
 https://github.com/Heyzi/megalinter_flavor_generator/blob/ec51579b500636334fb591b4c4343383b36f3615/flavor_generator.py
 """
+
 import argparse
 import json
 import logging
@@ -44,7 +45,7 @@ DEFAULT_COMPONENTS = [
     "lintr",
     "prettier",
     "yamllint",
-    "v8r"
+    "v8r",
 ]
 
 # Paths
@@ -142,9 +143,7 @@ def update_flavor_factory(
             # Prepare the new flavor entry
             match = re.match(r"\s+", last_entry)
             indent = match.group() if match else ""
-            new_flavor_entry = (
-                f'{indent}"{new_flavor}": {{"strict": True, "label": "{new_flavor_description}"}},\n'
-            )
+            new_flavor_entry = f'{indent}"{new_flavor}": {{"strict": True, "label": "{new_flavor_description}"}},\n'
 
             # Insert the new flavor entry
             updated_flavors_str = (
