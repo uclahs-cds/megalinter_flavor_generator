@@ -6,7 +6,6 @@ https://github.com/Heyzi/megalinter_flavor_generator/blob/ec51579b500636334fb591
 """
 
 import argparse
-import json
 import logging
 import os
 import subprocess
@@ -47,19 +46,6 @@ DEFAULT_COMPONENTS = [
     "v8r",
 ]
 
-# Paths
-BASE_DIR = Path(__file__).resolve().parent / "megalinter"
-MEGALINTER_DIR = BASE_DIR / "megalinter"
-PATHS = {
-    "descriptors": MEGALINTER_DIR / "descriptors",
-    "schema": MEGALINTER_DIR
-    / "descriptors"
-    / "schemas"
-    / "megalinter-descriptor.jsonschema.json",
-    "flavor_factory": MEGALINTER_DIR / "flavor_factory.py",
-    "build_script": BASE_DIR / ".automation" / "build.py",
-}
-
 # Setup logging
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
@@ -89,36 +75,6 @@ def parse_arguments() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def add_flavor_to_schema(megalinter_repo_dir: Path, new_flavor: str) -> None:
-    """Update the schema file with the new flavor if it doesn't already exist."""
-    schema_path = (
-        megalinter_repo_dir
-        / "megalinter"
-        / "descriptors"
-        / "schemas"
-        / "megalinter-descriptor.jsonschema.json"
-    )
-
-    logger.info("Updating schema file: %s", schema_path)
-
-    with schema_path.open("rb") as infile:
-        schema = json.load(infile)
-
-    enum_flavors = schema["definitions"]["enum_flavors"]["enum"]
-    if new_flavor not in enum_flavors:
-        enum_flavors.append(new_flavor)
-        enum_flavors.sort()
-
-        with schema_path.open("w", encoding="utf-8") as outfile:
-            json.dump(schema, outfile, indent=2)
-        logger.info("Added '%s' to enum_flavors in the schema file.", new_flavor)
-    else:
-        logger.info(
-            "'%s' already exists in enum_flavors. No changes made to the schema file.",
-            new_flavor,
-        )
-
-
 def update_flavor_factory(
     megalinter_repo_dir: Path, flavor_name: str, flavor_description: str
 ) -> None:
@@ -133,10 +89,12 @@ def update_flavor_factory(
         list_megalinter_flavors_ = list_megalinter_flavors
 
         def list_megalinter_flavors():
-            return list_megalinter_flavors_().setdefault(
+            flavors = list_megalinter_flavors_()
+            flavors.setdefault(
                 {repr(flavor_name)},
                 dict(label={repr(flavor_description)})
             )
+            return flavors
         """)
 
     flavor_factory.write_text(content, encoding="utf-8")
@@ -255,7 +213,6 @@ def update_flavor() -> None:
 
     megalinter_repo_dir = Path(__file__).resolve().parent / "megalinter"
 
-    add_flavor_to_schema(megalinter_repo_dir, flavor_name)
     update_flavor_factory(megalinter_repo_dir, flavor_name, flavor_description)
     update_yaml_descriptors(megalinter_repo_dir, components, flavor_name)
     logger.info("MegaLinter flavor update process completed successfully")
