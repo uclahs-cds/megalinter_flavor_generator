@@ -9,11 +9,10 @@ import argparse
 import json
 import logging
 import os
-import re
 import subprocess
 import sys
+import textwrap
 from pathlib import Path
-from typing import List
 
 from ruamel.yaml import YAML
 
@@ -74,114 +73,88 @@ def parse_arguments() -> argparse.Namespace:
         description="Update MegaLinter flavor and components."
     )
     parser.add_argument(
-        "--new-flavor", default=DEFAULT_NEW_FLAVOR, help="Name of the new flavor"
+        "--flavor-name", default=DEFAULT_NEW_FLAVOR, help="Name of the new flavor"
     )
     parser.add_argument(
-        "--new-flavor-description",
+        "--flavor-description",
         default=DEFAULT_NEW_FLAVOR_DESCRIPTION,
         help="Description of the new flavor",
     )
     parser.add_argument(
         "--components",
-        default=",".join(DEFAULT_COMPONENTS),
-        help="Comma-separated list of components to include",
+        default=DEFAULT_COMPONENTS,
+        nargs="+",
+        help="Components to include",
     )
     return parser.parse_args()
 
 
-def update_schema_file(file_path: Path, new_flavor: str) -> None:
+def add_flavor_to_schema(megalinter_repo_dir: Path, new_flavor: str) -> None:
     """Update the schema file with the new flavor if it doesn't already exist."""
-    logger.info("Updating schema file: %s", file_path)
-    try:
-        with file_path.open("r") as file:
-            schema = json.load(file)
+    schema_path = (
+        megalinter_repo_dir
+        / "megalinter"
+        / "descriptors"
+        / "schemas"
+        / "megalinter-descriptor.jsonschema.json"
+    )
 
-        enum_flavors = schema["definitions"]["enum_flavors"]["enum"]
-        if new_flavor not in enum_flavors:
-            enum_flavors.append(new_flavor)
-            enum_flavors.sort()
+    logger.info("Updating schema file: %s", schema_path)
 
-            with file_path.open("w") as file:
-                json.dump(schema, file, indent=2)
-            logger.info("Added '%s' to enum_flavors in the schema file.", new_flavor)
-        else:
-            logger.info(
-                "'%s' already exists in enum_flavors. No changes made to the schema file.",
-                new_flavor,
-            )
-    except Exception as err:
-        logger.error("Error updating schema file: %s", err, exc_info=True)
-        raise
+    with schema_path.open("rb") as infile:
+        schema = json.load(infile)
+
+    enum_flavors = schema["definitions"]["enum_flavors"]["enum"]
+    if new_flavor not in enum_flavors:
+        enum_flavors.append(new_flavor)
+        enum_flavors.sort()
+
+        with schema_path.open("w", encoding="utf-8") as outfile:
+            json.dump(schema, outfile, indent=2)
+        logger.info("Added '%s' to enum_flavors in the schema file.", new_flavor)
+    else:
+        logger.info(
+            "'%s' already exists in enum_flavors. No changes made to the schema file.",
+            new_flavor,
+        )
 
 
 def update_flavor_factory(
-    file_path: Path, new_flavor: str, new_flavor_description: str
+    megalinter_repo_dir: Path, flavor_name: str, flavor_description: str
 ) -> None:
     """Update the flavor factory file with the new flavor if it doesn't already exist."""
-    logger.info("Updating flavor factory file: %s", file_path)
-    try:
-        with file_path.open("r") as file:
-            content = file.read()
+    flavor_factory = megalinter_repo_dir / "megalinter" / "flavor_factory.py"
+    logger.info("Updating flavor factory file: %s", flavor_factory)
 
-        # Find the flavors dictionary in the content
-        start = content.index("def list_megalinter_flavors():")
-        end = content.index("return flavors", start)
-        flavors_dict_str = content[start:end]
+    content = flavor_factory.read_text(encoding="utf-8")
 
-        # Check if the new flavor already exists
-        if f'"{new_flavor}":' not in flavors_dict_str:
-            # Find the last entry in the dictionary
-            last_entry = re.findall(
-                r'\s+".+?": {.+?},?\n', flavors_dict_str, re.DOTALL
-            )[-1]
-            last_entry_pos = flavors_dict_str.rfind(last_entry)
+    # Hijack and re-define the function
+    content += textwrap.dedent(f"""\
+        list_megalinter_flavors_ = list_megalinter_flavors
 
-            # Prepare the new flavor entry
-            match = re.match(r"\s+", last_entry)
-            indent = match.group() if match else ""
-            new_flavor_entry = f'{indent}"{new_flavor}": {{"strict": True, "label": "{new_flavor_description}"}},\n'
-
-            # Insert the new flavor entry
-            updated_flavors_str = (
-                flavors_dict_str[:last_entry_pos]
-                + last_entry.rstrip(",\n")
-                + ",\n"
-                + new_flavor_entry
-                + flavors_dict_str[last_entry_pos + len(last_entry) :].rstrip()
-                + "\n"
-                + indent[:-4]
+        def list_megalinter_flavors():
+            return list_megalinter_flavors_().setdefault(
+                {repr(flavor_name)},
+                {repr(flavor_description)}
             )
+        """)
 
-            # Update the file content
-            updated_content = (
-                content[:start]
-                + updated_flavors_str
-                + "return flavors\n"
-                + content[end + len("return flavors") :]
-            )
-
-            with file_path.open("w") as file:
-                file.write(updated_content)
-            logger.info("Added '%s' flavor in flavor_factory.py", new_flavor)
-        else:
-            logger.info("'%s' flavor already exists. No changes made.", new_flavor)
-    except Exception as err:
-        logger.error("Error updating flavor factory file: %s", err, exc_info=True)
-        raise
+    flavor_factory.write_text(content, encoding="utf-8")
+    logger.info("Added '%s' flavor in flavor_factory.py", flavor_name)
 
 
 def update_yaml_descriptors(
-    directory: Path, components: List[str], new_flavor: str
+    megalinter_repo_dir: Path, components: set[str], new_flavor: str
 ) -> None:
     """Update YAML descriptor files with minimal changes."""
-    logger.info("Updating YAML descriptors in %s", directory)
+    descriptor_dir = megalinter_repo_dir / "megalinter" / "descriptors"
+    logger.info("Updating YAML descriptors in %s", descriptor_dir)
 
     yaml = YAML()
     yaml.preserve_quotes = True
     yaml.indent(mapping=2, sequence=4, offset=2)
-    yaml_files = list(directory.glob("*.y*ml"))
 
-    for file_path in yaml_files:
+    for file_path in descriptor_dir.glob("*.y*ml"):
         logger.debug("Processing file: %s", file_path)
 
         with file_path.open("r") as file:
@@ -236,15 +209,22 @@ def update_yaml_descriptors(
             logger.debug("No changes needed for %s", file_path)
 
 
-def run_build_script() -> None:
+def run_build_script(megalinter_repo_dir: Path) -> None:
     """Run the build script with the correct Python path."""
     logger.info("Running build.py with PYTHONPATH set to '.'")
 
-    os.environ["PYTHONPATH"] = "."
-    script_path = str(PATHS["build_script"])
+    proc_env = os.environ.copy()
+    proc_env.update({"PYTHONPATH": "."})
+
+    script_path = megalinter_repo_dir / ".automation" / "build.py"
 
     try:
-        subprocess.run([sys.executable, script_path], cwd=BASE_DIR, check=True)
+        subprocess.run(
+            [sys.executable, script_path],
+            cwd=megalinter_repo_dir,
+            env=proc_env,
+            check=True,
+        )
 
     except subprocess.CalledProcessError as err:
         logger.exception("Error in build.py: %s", err)
@@ -258,35 +238,32 @@ def run_build_script() -> None:
         ) from None
 
 
-def main() -> None:
+def update_flavor() -> None:
     """Main function to orchestrate the update process and run the build script."""
-    try:
-        args = parse_arguments()
-        new_flavor = args.new_flavor
-        new_flavor_description = args.new_flavor_description
-        components = [comp.strip() for comp in args.components.split(",")]
+    args = parse_arguments()
 
-        logger.info(
-            "Starting MegaLinter flavor update process with new flavor: %s", new_flavor
-        )
-        logger.info("New flavor description: %s", new_flavor_description)
-        logger.info("Components: %s", components)
+    flavor_name = args.flavor_name
+    flavor_description = args.flavor_description
 
-        update_schema_file(PATHS["schema"], new_flavor)
-        update_flavor_factory(
-            PATHS["flavor_factory"], new_flavor, new_flavor_description
-        )
-        update_yaml_descriptors(PATHS["descriptors"], components, new_flavor)
-        logger.info("MegaLinter flavor update process completed successfully")
+    components = {component.strip() for component in args.components}
 
-        logger.info("Starting build script execution")
-        run_build_script()
-        logger.info("Build script execution completed successfully")
+    logger.info(
+        "Starting MegaLinter flavor update process with new flavor: %s", flavor_name
+    )
+    logger.info("New flavor description: %s", flavor_description)
+    logger.info("Components: %s", components)
 
-    except Exception as err:
-        logger.error("MegaLinter update and build process failed: %s", err)
-        raise
+    megalinter_repo_dir = Path(__file__).resolve().parent / "megalinter"
+
+    add_flavor_to_schema(megalinter_repo_dir, flavor_name)
+    update_flavor_factory(megalinter_repo_dir, flavor_name, flavor_description)
+    update_yaml_descriptors(megalinter_repo_dir, components, flavor_name)
+    logger.info("MegaLinter flavor update process completed successfully")
+
+    logger.info("Starting build script execution")
+    run_build_script(megalinter_repo_dir)
+    logger.info("Build script execution completed successfully")
 
 
 if __name__ == "__main__":
-    main()
+    update_flavor()
