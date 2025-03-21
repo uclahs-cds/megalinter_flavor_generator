@@ -265,52 +265,6 @@ def run_build_script() -> None:
         ) from None
 
 
-def build_docker_image(new_flavor: str) -> None:
-    """Build the Docker image for the new flavor using Docker CLI directly."""
-    dockerfile_path = f"flavors/{new_flavor}/Dockerfile"
-    context_path = "."
-    image_name = f"megalinter-{new_flavor}:latest"
-
-    logger.info("Building Docker image for %s flavor...", new_flavor)
-
-    try:
-        # Check if Dockerfile exists
-        if not os.path.exists(dockerfile_path):
-            raise FileNotFoundError(f"Dockerfile not found at {dockerfile_path}")
-
-        # Prepare the Docker build command
-        build_command = [
-            "docker",
-            "build",
-            "--build-arg",
-            "BUILDKIT_INLINE_CACHE=1",
-            "-f",
-            dockerfile_path,
-            "-t",
-            image_name,
-            context_path,
-        ]
-
-        # Set environment variable to enable BuildKit
-        env = os.environ.copy()
-        env["DOCKER_BUILDKIT"] = "1"
-
-        # Execute the Docker build command
-        subprocess.run(build_command, env=env, check=True)
-
-        logger.info("Successfully built Docker image: %s", image_name)
-
-    except subprocess.CalledProcessError as err:
-        logger.error("Error building Docker image: %s", err)
-        raise RuntimeError(f"Docker build failed: {err}") from err
-    except FileNotFoundError as err:
-        logger.error(str(err))
-        raise
-    except Exception as err:
-        logger.error("Unexpected error during Docker build: %s", err)
-        raise RuntimeError(f"Unexpected error during Docker build: {err}") from err
-
-
 def main() -> None:
     """Main function to orchestrate the update process and run the build script."""
     try:
