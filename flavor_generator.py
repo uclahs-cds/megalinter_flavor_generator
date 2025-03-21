@@ -135,7 +135,7 @@ def update_flavor_factory(
         def list_megalinter_flavors():
             return list_megalinter_flavors_().setdefault(
                 {repr(flavor_name)},
-                {repr(flavor_description)}
+                dict(label={repr(flavor_description)})
             )
         """)
 
