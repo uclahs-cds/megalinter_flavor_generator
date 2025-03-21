@@ -183,64 +183,57 @@ def update_yaml_descriptors(
 
     for file_path in yaml_files:
         logger.debug("Processing file: %s", file_path)
-        try:
-            with file_path.open("r") as file:
-                data = yaml.load(file)
 
-            modified = False
-            root_flavor_added = False
+        with file_path.open("r") as file:
+            descriptor_data = yaml.load(file)
 
-            if isinstance(data, dict) and "linters" in data:
-                for linter in data["linters"]:
-                    if isinstance(linter, dict) and "linter_name" in linter:
-                        linter_name = linter["linter_name"]
+        modified = False
 
-                        if "descriptor_flavors" not in linter:
-                            linter["descriptor_flavors"] = []
+        if not isinstance(descriptor_data, dict):
+            logger.error("Malformed descriptor file: %s", file_path.name)
+            continue
 
-                        if linter_name in components:
-                            if new_flavor not in linter["descriptor_flavors"]:
-                                linter["descriptor_flavors"].append(new_flavor)
-                                modified = True
-                                logger.info(
-                                    "Added %s to %s in %s",
-                                    new_flavor,
-                                    linter_name,
-                                    file_path,
-                                )
+        for linter in descriptor_data.get("linters", []):
+            if not isinstance(linter, dict):
+                logger.error("Malformed linter in %s: %s", file_path.name, linter)
+                continue
 
-                                # Check if we need to update root descriptor_flavors
-                                if "install" in data and not root_flavor_added:
-                                    if "descriptor_flavors" not in data:
-                                        data["descriptor_flavors"] = []
-                                    if new_flavor not in data["descriptor_flavors"]:
-                                        data["descriptor_flavors"].append(new_flavor)
-                                        root_flavor_added = True
-                                        logger.info(
-                                            "Added %s to root descriptor_flavors in %s",
-                                            new_flavor,
-                                            file_path,
-                                        )
-                        else:
-                            if new_flavor in linter["descriptor_flavors"]:
-                                linter["descriptor_flavors"].remove(new_flavor)
-                                modified = True
-                                logger.info(
-                                    "Removed %s from %s in %s",
-                                    new_flavor,
-                                    linter_name,
-                                    file_path,
-                                )
+            if (linter_name := linter.get("linter_name", "")) in components:
+                if new_flavor not in linter.setdefault("descriptor_flavors", []):
+                    linter["descriptor_flavors"].append(new_flavor)
+                    modified = True
+                    logger.info(
+                        "Added %s to %s in %s", new_flavor, linter_name, file_path
+                    )
 
-            if modified:
-                with file_path.open("w") as file:
-                    yaml.dump(data, file)
-                logger.info("Updated %s", file_path)
-            else:
-                logger.debug("No changes needed for %s", file_path)
-        except Exception as err:
-            logger.error("Error processing file %s: %s", file_path, err)
-            raise
+                    # Check if we need to update root descriptor_flavors
+                    if (
+                        "install" in descriptor_data
+                        and new_flavor
+                        not in descriptor_data.setdefault("descriptor_flavors", [])
+                    ):
+                        descriptor_data["descriptor_flavors"].append(new_flavor)
+                        logger.info(
+                            "Added %s to root descriptor_flavors in %s",
+                            new_flavor,
+                            file_path,
+                        )
+            elif new_flavor in linter.get("descriptor_flavors", []):
+                linter["descriptor_flavors"].remove(new_flavor)
+                modified = True
+                logger.info(
+                    "Removed %s from %s in %s",
+                    new_flavor,
+                    linter_name,
+                    file_path,
+                )
+
+        if modified:
+            with file_path.open("w") as file:
+                yaml.dump(descriptor_data, file)
+            logger.info("Updated %s", file_path)
+        else:
+            logger.debug("No changes needed for %s", file_path)
 
 
 def run_build_script() -> None:
