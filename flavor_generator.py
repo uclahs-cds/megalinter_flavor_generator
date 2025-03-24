@@ -8,6 +8,7 @@ https://github.com/Heyzi/megalinter_flavor_generator/blob/ec51579b500636334fb591
 import argparse
 import logging
 import os
+import string
 import subprocess
 import sys
 import textwrap
@@ -44,7 +45,25 @@ DEFAULT_COMPONENTS = [
     "prettier",
     "yamllint",
     "v8r",
+    "readme_text",
+    "required_files",
 ]
+
+
+INJECT_TEMPLATE = string.Template("""\
+RUN <<EOWRAP
+
+readonly scriptpath='/usr/local/bin/${script_name}'
+
+# Confirm that the script does not already exist
+[ ! -f "$$scriptpath" ]
+
+cat > "$$scriptpath" << 'EOPYTHON'
+${script_contents}
+EOPYTHON
+chmod +x "$$scriptpath"
+EOWRAP
+""")
 
 # Setup logging
 logging.basicConfig(
@@ -71,6 +90,13 @@ def parse_arguments() -> argparse.Namespace:
         default=DEFAULT_COMPONENTS,
         nargs="+",
         help="Components to include",
+    )
+    parser.add_argument(
+        "--add-descriptor",
+        action="append",
+        dest="descriptors",
+        type=Path,
+        help="New custom descriptor files to inject",
     )
     return parser.parse_args()
 
@@ -99,6 +125,46 @@ def update_flavor_factory(
 
     flavor_factory.write_text(content, encoding="utf-8")
     logger.info("Added '%s' flavor in flavor_factory.py", flavor_name)
+
+
+def inject_yaml_descriptors(
+    megalinter_repo_dir: Path, descriptor_files: list[Path]
+) -> None:
+    """Inject a new custom descriptor into MegaLinter."""
+    descriptor_dir = megalinter_repo_dir / "megalinter" / "descriptors"
+
+    yaml = YAML()
+    yaml.preserve_quotes = True
+    yaml.indent(mapping=2, sequence=4, offset=2)
+
+    for descriptor_file in descriptor_files:
+        logger.info("Injecting descriptor: %s", descriptor_file)
+
+        # Read in the descriptor to see if there are any python scripts to be
+        # embedded
+        with descriptor_file.open(mode="rb") as file:
+            descriptor_data = yaml.load(file)
+
+        for linter_data in descriptor_data["linters"]:
+            install_data = linter_data.get("install", {})
+            if inject_script := install_data.pop("dockerinject", None):
+                logger.info("Injecting python script: %s", inject_script)
+                script_path = descriptor_file.parent.joinpath(inject_script)
+                script_contents = script_path.read_text(encoding="utf-8")
+
+                assert "EOPYTHON" not in script_contents
+                assert "EOWRAP" not in script_contents
+
+                install_data.setdefault("dockerfile", []).append(
+                    INJECT_TEMPLATE.substitute(
+                        script_name=script_path.name, script_contents=script_contents
+                    )
+                )
+
+        with (descriptor_dir / descriptor_file.name).open(
+            mode="w", encoding="utf-8"
+        ) as outfile:
+            yaml.dump(descriptor_data, outfile)
 
 
 def update_yaml_descriptors(
@@ -205,15 +271,16 @@ def update_flavor() -> None:
 
     components = {component.strip() for component in args.components}
 
-    logger.info(
-        "Starting MegaLinter flavor update process with new flavor: %s", flavor_name
-    )
+    logger.info("New flavor name: %s", flavor_name)
     logger.info("New flavor description: %s", flavor_description)
     logger.info("Components: %s", components)
 
     megalinter_repo_dir = Path(__file__).resolve().parent / "megalinter"
 
     update_flavor_factory(megalinter_repo_dir, flavor_name, flavor_description)
+
+    inject_yaml_descriptors(megalinter_repo_dir, args.descriptors)
+
     update_yaml_descriptors(megalinter_repo_dir, components, flavor_name)
     logger.info("MegaLinter flavor update process completed successfully")
 

@@ -1,0 +1,31 @@
+---
+descriptor_id: UCLAHS
+descriptor_type: other
+lint_all_files: true
+
+linters:
+  - linter_name: required_files
+    cli_executable: required_files.py
+    cli_lint_mode: project
+    examples:
+      - required_files.py
+    linter_url: https://github.com/uclahs-cds/tool-static-analysis
+    cli_lint_errors_count: regex_count
+    cli_lint_errors_regex: "Missing required file:"
+
+    install:
+      dockerinject: required_files.py
+
+  - linter_name: readme_text
+    active_only_if_file_found:
+      - README.md
+    cli_executable: readme_text.py
+    cli_lint_mode: project
+    examples:
+      - readme_text.py
+    linter_url: https://github.com/uclahs-cds/tool-static-analysis
+    cli_lint_errors_count: regex_sum
+    cli_lint_errors_regex: "Found ([0-9]+) instances of:"
+
+    install:
+      dockerinject: readme_text.py
