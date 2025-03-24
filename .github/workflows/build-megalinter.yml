@@ -39,7 +39,8 @@ jobs:
             -r megalinter/.config/python/dev/requirements.txt \
             ruamel.yaml \
             megalinter/
-          python flavor_generator.py
+          python flavor_generator.py \
+            --add-descriptor custom-descriptor/uclahs.megalinter-descriptor.yml
 
       - name: Docker Metadata action
         uses: docker/metadata-action@v5.6.1
