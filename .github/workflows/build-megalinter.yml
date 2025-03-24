@@ -35,6 +35,7 @@ jobs:
       - name: Generate the custom flavor Dockerfile
         shell: bash
         run: |
+          pip install --upgrade pip setuptools==68.2.2
           pip install --upgrade \
             -r megalinter/.config/python/dev/requirements.txt \
             ruamel.yaml \
