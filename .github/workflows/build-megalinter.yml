@@ -30,12 +30,11 @@ jobs:
       - name: Set up python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: '3.9'
 
       - name: Generate the custom flavor Dockerfile
         shell: bash
         run: |
-          pip install pychalk-2.0.1-py3-none-any.whl
           pip install --upgrade \
             -r megalinter/.config/python/dev/requirements.txt \
             ruamel.yaml \
