@@ -30,12 +30,13 @@ jobs:
       - name: Set up python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: '3.12.8'
 
       - name: Generate the custom flavor Dockerfile
         shell: bash
         run: |
-          pip install --upgrade \
+          python -m pip install uv
+          uv pip install --system \
             -r megalinter/.config/python/dev/requirements.txt \
             ruamel.yaml \
             megalinter/
