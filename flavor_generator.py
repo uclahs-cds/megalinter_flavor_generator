@@ -178,6 +178,8 @@ def update_yaml_descriptors(
     yaml.preserve_quotes = True
     yaml.indent(mapping=2, sequence=4, offset=2)
 
+    install_descriptors = {new_flavor, "all_flavors"}
+
     for file_path in descriptor_dir.glob("*.y*ml"):
         logger.debug("Processing file: %s", file_path)
 
@@ -185,6 +187,7 @@ def update_yaml_descriptors(
             descriptor_data = yaml.load(file)
 
         modified = False
+        any_components_present = False
 
         if not isinstance(descriptor_data, dict):
             logger.error("Malformed descriptor file: %s", file_path.name)
@@ -196,6 +199,8 @@ def update_yaml_descriptors(
                 continue
 
             if (linter_name := linter.get("linter_name", "")) in components:
+                any_components_present = True
+
                 if new_flavor not in linter.setdefault("descriptor_flavors", []):
                     linter["descriptor_flavors"].append(new_flavor)
                     modified = True
@@ -215,15 +220,49 @@ def update_yaml_descriptors(
                             new_flavor,
                             file_path,
                         )
-            elif new_flavor in linter.get("descriptor_flavors", []):
-                linter["descriptor_flavors"].remove(new_flavor)
+                continue
+
+            # We need to make sure this linter is _not_ installed
+            existing_descriptors = set(linter.get("descriptor_flavors", []))
+
+            if install_descriptors & existing_descriptors:
+                linter["descriptor_flavors"] = sorted(
+                    existing_descriptors - install_descriptors
+                )
                 modified = True
                 logger.info(
                     "Removed %s from %s in %s",
-                    new_flavor,
+                    install_descriptors & existing_descriptors,
                     linter_name,
                     file_path,
                 )
+
+        # Check the root descriptor_flavors
+        existing_descriptors = set(descriptor_data.get("descriptor_flavors", []))
+        descriptors_present = install_descriptors & existing_descriptors
+
+        if any_components_present and not descriptors_present:
+            # Inject the root-level descriptor
+            modified = True
+            descriptor_data["descriptor_flavors"] = sorted(
+                existing_descriptors | install_descriptors
+            )
+            logger.info(
+                "Added %s to root-level in %s",
+                install_descriptors - existing_descriptors,
+                file_path,
+            )
+        elif not any_components_present and descriptors_present:
+            # Remove the root-level descriptors
+            modified = True
+            descriptor_data["descriptor_flavors"] = sorted(
+                existing_descriptors - install_descriptors
+            )
+            logger.info(
+                "Removed %s from root-level in %s",
+                install_descriptors & existing_descriptors,
+                file_path,
+            )
 
         if modified:
             with file_path.open("w") as file:
