@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """Check that all of the required files are present."""
 
 import sys
