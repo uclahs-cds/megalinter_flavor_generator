@@ -9,7 +9,6 @@ import argparse
 import base64
 import logging
 import os
-import string
 import subprocess
 import sys
 import textwrap
@@ -142,7 +141,13 @@ def inject_yaml_descriptors(
                     f'RUN [ ! -f "{docker_path}" ]',
                     f'RUN echo "{base64.b64encode(script_path.read_bytes()).decode("utf-8")}" | base64 -d > "{docker_path}"',
                     f'RUN chmod +x "{docker_path}"',
-                    ])
+                ])
+
+                linter_data["linter_version_cache"] = (
+                    subprocess.check_output(["git", "rev-parse", "HEAD"])
+                    .decode("utf-8")
+                    .strip()
+                )
 
         with (descriptor_dir / descriptor_file.name).open(
             mode="w", encoding="utf-8"
