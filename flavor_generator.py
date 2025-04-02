@@ -6,6 +6,7 @@ https://github.com/Heyzi/megalinter_flavor_generator/blob/ec51579b500636334fb591
 """
 
 import argparse
+import base64
 import logging
 import os
 import string
@@ -49,21 +50,6 @@ DEFAULT_COMPONENTS = [
     "required_files",
 ]
 
-
-INJECT_TEMPLATE = string.Template("""\
-RUN <<EOWRAP
-
-readonly scriptpath='/usr/local/bin/${script_name}'
-
-# Confirm that the script does not already exist
-[ ! -f "$$scriptpath" ]
-
-cat > "$$scriptpath" << 'EOPYTHON'
-${script_contents}
-EOPYTHON
-chmod +x "$$scriptpath"
-EOWRAP
-""")
 
 # Setup logging
 logging.basicConfig(
@@ -150,16 +136,13 @@ def inject_yaml_descriptors(
             if inject_script := install_data.pop("dockerinject", None):
                 logger.info("Injecting python script: %s", inject_script)
                 script_path = descriptor_file.parent.joinpath(inject_script)
-                script_contents = script_path.read_text(encoding="utf-8")
+                docker_path = Path("/usr/local/bin", script_path.name)
 
-                assert "EOPYTHON" not in script_contents
-                assert "EOWRAP" not in script_contents
-
-                install_data.setdefault("dockerfile", []).append(
-                    INJECT_TEMPLATE.substitute(
-                        script_name=script_path.name, script_contents=script_contents
-                    )
-                )
+                install_data.setdefault("dockerfile", []).extend([
+                    f'RUN [ ! -f "{docker_path}" ]',
+                    f'RUN echo "{base64.b64encode(script_path.read_bytes())}" | base64 -d > "{docker_path}"',
+                    f'RUN chmod +x "{docker_path}"',
+                    ])
 
         with (descriptor_dir / descriptor_file.name).open(
             mode="w", encoding="utf-8"
