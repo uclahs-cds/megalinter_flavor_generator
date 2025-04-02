@@ -140,7 +140,7 @@ def inject_yaml_descriptors(
 
                 install_data.setdefault("dockerfile", []).extend([
                     f'RUN [ ! -f "{docker_path}" ]',
-                    f'RUN echo "{base64.b64encode(script_path.read_bytes())}" | base64 -d > "{docker_path}"',
+                    f'RUN echo "{base64.b64encode(script_path.read_bytes()).decode("utf-8")}" | base64 -d > "{docker_path}"',
                     f'RUN chmod +x "{docker_path}"',
                     ])
 
