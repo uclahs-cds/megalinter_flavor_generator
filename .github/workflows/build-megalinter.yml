@@ -47,7 +47,7 @@ jobs:
         id: meta
         with:
           images: |
-            ghcr.io/${{ github.repository_owner }}/bl-megalinter
+            ghcr.io/${{ github.repository_owner }}/bio-megalinter
           flavor: |
             latest=false
             prefix=beta
@@ -77,4 +77,3 @@ jobs:
             BUILD_REVISION=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.revision'] }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
-          platforms: linux/amd64,linux/arm64
